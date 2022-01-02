@@ -179,8 +179,8 @@ class Ghost(pygame.sprite.Sprite):
         self.last = []
 
     def sees_pacman(self, sides):
+        last_rect = self.rect
         for x in sides:
-            last_rect = self.rect
             while True:
                 self.do_a_move(x, False)
                 if pygame.sprite.collide_mask(self, Location_obj):
@@ -196,7 +196,6 @@ class Ghost(pygame.sprite.Sprite):
         if sides is None:
             sides = [LEFT, RIGHT, DOWN, UP]
         for x in sides:
-            self.rect = last_rect
             self.rect = self.rect.move(x[0] * 16, x[1] * 16)
             if not pygame.sprite.collide_mask(self, Location_obj):
                 if x not in self.motion_dont_move_to:
@@ -206,7 +205,7 @@ class Ghost(pygame.sprite.Sprite):
             elif x in self.motion_dont_move_to:
                 if block_motion:
                     self.motion_dont_move_to.remove(x)
-        self.rect = last_rect
+            self.rect = last_rect
 
     def choose_side_to_move(self):
         global CURRENT_LEVEL
@@ -218,20 +217,16 @@ class Ghost(pygame.sprite.Sprite):
             if abs(x[0]) != abs(self.motion[0]) or not list(self.possible_move_to_sides([self.motion], False)):
                 new_sides.append(x)
         new_sides.append(self.motion)
-        '''if time() >= self.rage_time:
-            if len(new_sides) == 1:
-                return new_sides[0]
-            else:
-                return self.rage_move(moves_made)
-        else:'''
         if len(new_sides) == 1:
             return new_sides[0]
         x1, y1, x2, y2 = levels_settings[CURRENT_LEVEL][6]
         if x1 < self.rect.x < x2 and y1 < self.rect.y < y2:
+            if UP in sides:
+                return UP
             start_pos = self.rect
             moves_count = [0] * len(new_sides)
             for i in range(len(new_sides)):
-                while x1 < self.rect.x < x2 and y1 < self.rect.y < y2 and moves_count[i] < 12:
+                while x1 < self.rect.x < x2 and y1 < self.rect.y < y2 and moves_count[i] < 11:
                     moves_count[i] += 1
                     if pygame.sprite.collide_mask(self, Location_obj):
                         moves_count[i] = 12
