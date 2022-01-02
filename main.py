@@ -178,7 +178,17 @@ class Ghost(pygame.sprite.Sprite):
         self.rage_time = self.release_time + rage_time
         self.last = []
 
-    def sees_pacman(self):
+    def sees_pacman(self, sides):
+        for x in sides:
+            last_rect = self.rect
+            while True:
+                self.do_a_move(x, False)
+                if pygame.sprite.collide_mask(self, Location_obj):
+                    break
+                elif pygame.sprite.collide_mask(self, Pacman_obj):
+                    self.rect = last_rect
+                    return x
+            self.rect = last_rect
         return False
 
     def possible_move_to_sides(self, sides=None, block_motion=True):
@@ -233,17 +243,14 @@ class Ghost(pygame.sprite.Sprite):
         else:
             if DOWN in new_sides and x1 < self.rect.x < x2 and y1 < self.rect.y + pacman_width[1] + 3 < y2:
                 new_sides.remove(DOWN)
-            if self.sees_pacman():  # если призрак видит пакмана, но эта функция не реализована, должна возвращать False если пакман находиться там, откуда пришёл призрак
-                return
-            else:
-                return choice(new_sides)
+            return self.sees_pacman(new_sides) or choice(new_sides)
 
     def do_a_move(self, side_to_move=None, take_into_collision=True):
         if self.rect.x < -25:
             self.rect.x = width - pacman_width[0]
         elif self.rect.x > width - 3:
             self.rect.x = 1
-        self.last = self.rect.x, self.rect.y
+        last = self.rect.x, self.rect.y
         if side_to_move is None:
             side_to_move = self.choose_side_to_move()
         self.rect = self.rect.move(*side_to_move)
@@ -251,7 +258,7 @@ class Ghost(pygame.sprite.Sprite):
         if pygame.sprite.collide_mask(self, Location_obj) and take_into_collision:
             self.motion_dont_move_to = []
             self.motion = self.choose_side_to_move()
-            self.rect.x, self.rect.y = self.last
+            self.rect.x, self.rect.y = last
 
     def update(self):
         self.image = sprites['ghost'][self.color][self.motion][self.animation_stage]
