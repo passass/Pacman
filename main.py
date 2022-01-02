@@ -221,7 +221,7 @@ class Ghost(pygame.sprite.Sprite):
             return new_sides[0]
         x1, y1, x2, y2 = levels_settings[CURRENT_LEVEL][6]
         if x1 < self.rect.x < x2 and y1 < self.rect.y < y2:
-            if UP in sides:
+            if UP in new_sides:
                 return UP
             start_pos = self.rect
             moves_count = [0] * len(new_sides)
