@@ -56,9 +56,21 @@ levels_settings = {
     # координаты зоны из которой выходят призраки
     1: (pygame.transform.scale(pygame.image.load("data/level_1_background.png"), (width, height - 100)),
         pygame.transform.scale(pygame.image.load("data/level_1_walls_hitbox.png"), (width, height - 100)),
-        (570, 272), [(528, 147, 'red', 0, 1), (595, 147, 'pink', 0, 20), (560, 147, 'blue', 15, 20)],
+        (570, 272), ((528, 147, 'red', 0), (595, 147, 'pink', 0), (560, 147, 'blue', 15)),
         (525, 200), (), (520, 130, 623, 192)),
 }
+
+pygame.mixer.init()
+
+sounds = {
+    'chomp': pygame.mixer.Sound('data/pacman_chomp.wav')
+}
+
+def music_player(sound, pofig_na_busy=False):
+    if not pygame.mixer.music.get_busy() or pofig_na_busy:
+        pygame.mixer.music.load(f'data/{sound}')
+        pygame.mixer.music.play()
+        pygame.mixer.music.set_volume(0.1)
 
 
 class Location(pygame.sprite.Sprite):
@@ -121,7 +133,8 @@ def load_level():
     for stats in levels_settings[CURRENT_LEVEL][3]:
         all_sprites.add(Ghost(*stats))
         ghosts.add(all_sprites.sprites()[-1])
-    time_to_hide_text = time() + 2
+    music_player('pacman_beginning.wav')
+    time_to_hide_text = time() + 4
     string_rendered = font.render('START!', True, pygame.Color('yellow'))
     intro_rect = string_rendered.get_rect()
     intro_rect.x = levels_settings[CURRENT_LEVEL][4][0]
@@ -162,7 +175,7 @@ def WIN():
 
 
 class Ghost(pygame.sprite.Sprite):
-    def __init__(self, x, y, color, release_time=10, rage_time=20, *group):
+    def __init__(self, x, y, color, release_time=10, *group):
         super().__init__(*group)
         self.color = color
         self.image = sprites['ghost'][color][LEFT][0]
@@ -175,7 +188,6 @@ class Ghost(pygame.sprite.Sprite):
         self.motion = choice([LEFT, RIGHT])
         self.motion_dont_move_to = []
         self.release_time = time() + release_time
-        self.rage_time = self.release_time + rage_time
         self.last = []
 
     def sees_pacman(self, sides):
@@ -212,13 +224,14 @@ class Ghost(pygame.sprite.Sprite):
         sides = list(self.possible_move_to_sides([LEFT, RIGHT, DOWN, UP]))
         if self.motion in self.motion_dont_move_to:
             self.motion_dont_move_to.remove(self.motion)
-        new_sides = []
-        for x in sides:
-            if abs(x[0]) != abs(self.motion[0]) or not list(self.possible_move_to_sides([self.motion], False)):
-                new_sides.append(x)
-        new_sides.append(self.motion)
-        if len(new_sides) == 1:
-            return new_sides[0]
+        if list(self.possible_move_to_sides([self.motion], False)):
+            new_sides = [x for x in sides if abs(x[0]) != abs(self.motion[0])]
+        else:
+            new_sides = sides
+        if not new_sides:
+            return self.motion
+        else:
+            new_sides.append(self.motion)
         x1, y1, x2, y2 = levels_settings[CURRENT_LEVEL][6]
         if x1 < self.rect.x < x2 and y1 < self.rect.y < y2:
             if UP in new_sides:
@@ -231,8 +244,10 @@ class Ghost(pygame.sprite.Sprite):
                     if pygame.sprite.collide_mask(self, Location_obj):
                         moves_count[i] = 12
                         break
-                    elif isinstance(new_sides[i], tuple) and self.possible_move_to_sides(new_sides[i], False):
+                    elif self.possible_move_to_sides(new_sides[i], False):
                         self.do_a_move(new_sides[i], False)
+                        if not (x1 < self.rect.x < x2 and y1 < self.rect.y < y2):
+                            break
                 self.rect = start_pos
             return new_sides[moves_count.index(min(moves_count))]
         else:
@@ -276,6 +291,8 @@ class Pacman(pygame.sprite.Sprite):
         self.rect.y = y
         self.last = None
         self.last_motion = LEFT
+        self.must_play_eat_sound = False
+        self.time_to_play_sound = 0
 
     def possible_to_move(self, side):
         self.rect = self.rect.move(side[0] * 16, side[1] * 16)
@@ -297,6 +314,7 @@ class Pacman(pygame.sprite.Sprite):
         time_to_next_animation = time()
         by_account = -1
         ghosts = pygame.sprite.Group()
+        music_player('pacman_death.wav')
         while time() < time_to_load_new_level:
             screen.fill((0, 0, 0))
             if time() >= time_to_next_animation:
@@ -331,8 +349,14 @@ class Pacman(pygame.sprite.Sprite):
             for x in pygame.sprite.spritecollide(self, points, False):
                 add_points(10)
                 x.kill()
+            self.must_play_eat_sound = True
             if not points:
                 WIN()
+        if self.must_play_eat_sound and time() >= self.time_to_play_sound:
+            self.must_play_eat_sound = False
+            self.time_to_play_sound = time() + sounds['chomp'].get_length() - 0.1
+            sounds['chomp'].play()
+            #music_player('pacman_chomp.wav', True)
         if pygame.sprite.spritecollideany(self, ghosts):
             self.death()
         elif not pygame.sprite.collide_mask(self, Location_obj):
@@ -416,7 +440,7 @@ points_tab = font.render(str(TOTAL_POINTS), True, pygame.Color('white'))
 intro_rect = points_tab.get_rect()
 intro_rect.x = 10
 intro_rect.top = 10
-
+# Процесс игры
 while running:
     screen.fill((0, 0, 0))
     for i in range(attempts):
@@ -444,4 +468,5 @@ while running:
     all_sprites.update()
     clock.tick(90)
     pygame.display.flip()
+    music_player('pacman_ghosts_sounds.wav')
 pygame.quit()
