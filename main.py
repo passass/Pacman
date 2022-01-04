@@ -2,7 +2,7 @@ import sys
 import pygame
 from csv import reader
 from time import time
-from random import choice
+from random import choice, randint
 
 pygame.font.init()
 font = pygame.font.Font(pygame.font.match_font('consolas'), 30)
@@ -56,14 +56,15 @@ levels_settings = {
     # координаты зоны из которой выходят призраки
     1: (pygame.transform.scale(pygame.image.load("data/level_1_background.png"), (width, height - 100)),
         pygame.transform.scale(pygame.image.load("data/level_1_walls_hitbox.png"), (width, height - 100)),
-        (570, 272), ((528, 147, 'red', 0), (595, 147, 'pink', 0), (560, 147, 'blue', 15)),
+        (570, 272), ((528, 147, 'red', 0), (595, 147, 'pink', 0), (565, 147, 'yellow', 10), (560, 147, 'blue', 20)),
         (525, 200), (), (520, 130, 623, 192)),
 }
 
 pygame.mixer.init()
 
 sounds = {
-    'chomp': pygame.mixer.Sound('data/pacman_chomp.wav')
+    'chomp': pygame.mixer.Sound('data/pacman_chomp.wav'),
+    'eatfruit': pygame.mixer.Sound('data/pacman_eatfruit.wav')
 }
 
 def music_player(sound, pofig_na_busy=False):
@@ -87,14 +88,34 @@ class Location(pygame.sprite.Sprite):
 
 
 class Circle_of_point(pygame.sprite.Sprite):
-    def __init__(self, x, y, *group):
+    def __init__(self, x, y, is_fruit=False, *group):
         super().__init__(*group)
-        self.image = sprites['circle_of_point']
+        self.image = sprites['circle_of_point'] if not is_fruit else choice(sprites['fruit'])
         self.rect = self.image.get_rect()
         self.mask = pygame.mask.from_surface(self.image)
-        self.rect.x = x - 3
-        self.rect.y = y - 3
+        if not is_fruit:
+            self.rect.x, self.rect.y = x - 3, y - 3
+        else:
+            self.rect.x, self.rect.y = x - 9, y - 15
+        self.is_fruit = is_fruit
 
+
+class Point_title(pygame.sprite.Sprite):
+    def __init__(self, x, y, count=100, *group):
+        super().__init__(*group)
+        self.image = sprites[count]
+        self.rect = self.image.get_rect()
+        self.mask = pygame.mask.from_surface(self.image)
+        self.rect.x, self.rect.y = x + 3, y
+        self.kill_time = time() + 1.5
+        self.tick_count = 0
+
+    def update(self):
+        self.tick_count += 1
+        if self.tick_count % 3 == 0:
+            self.rect.y -= 1
+        if time() >= self.kill_time:
+            self.kill()
 
 def reset_game():
     global CURRENT_LEVEL, attempts, points, TOTAL_POINTS
@@ -115,7 +136,7 @@ def load_points_locations():
 
 
 def load_level():
-    global Location_obj, ghosts, all_sprites, Pacman_obj
+    global Location_obj, ghosts, all_sprites, Pacman_obj, time_to_create_fruit
     if levels_settings[CURRENT_LEVEL][5]:
         global width, height, screen
         width, height = levels_settings[CURRENT_LEVEL][5][0], levels_settings[CURRENT_LEVEL][5][1]
@@ -148,6 +169,7 @@ def load_level():
                 terminate()
         pygame.display.flip()
         clock.tick(50)
+    time_to_create_fruit = time() + randint(30, 50)
 
 
 def add_points(count):
@@ -345,11 +367,15 @@ class Pacman(pygame.sprite.Sprite):
         self.image = sprites['pacman'][self.last_motion][self.animation_stage]
         if pygame.sprite.spritecollideany(self, points):
             for x in pygame.sprite.spritecollide(self, points, False):
-                add_points(10)
+                add_points(10 if not x.is_fruit else 100)
+                if x.is_fruit:
+                    sounds['eatfruit'].play()
+                    all_sprites.add(Point_title(x.rect.x, x.rect.y, 100))
                 x.kill()
-            self.must_play_eat_sound = True
             if not points:
                 WIN()
+            else:
+                self.must_play_eat_sound = True
         if self.must_play_eat_sound and time() >= self.time_to_play_sound:
             self.must_play_eat_sound = False
             self.time_to_play_sound = time() + sounds['chomp'].get_length()
@@ -403,7 +429,15 @@ sprites = {
                        DOWN: (pygame.transform.scale(pygame.image.load("data/ghost_blue_21.png"), pacman_width),
                               pygame.transform.scale(pygame.image.load("data/ghost_blue_22.png"), pacman_width)),
                        UP: (pygame.transform.scale(pygame.image.load("data/ghost_blue_31.png"), pacman_width),
-                            pygame.transform.scale(pygame.image.load("data/ghost_blue_32.png"), pacman_width))},},
+                            pygame.transform.scale(pygame.image.load("data/ghost_blue_32.png"), pacman_width))},
+              'yellow': {LEFT: (pygame.transform.scale(pygame.image.load("data/ghost_yellow_01.png"), pacman_width),
+                              pygame.transform.scale(pygame.image.load("data/ghost_yellow_02.png"), pacman_width)),
+                       RIGHT: (pygame.transform.scale(pygame.image.load("data/ghost_yellow_11.png"), pacman_width),
+                               pygame.transform.scale(pygame.image.load("data/ghost_yellow_12.png"), pacman_width)),
+                       DOWN: (pygame.transform.scale(pygame.image.load("data/ghost_yellow_21.png"), pacman_width),
+                              pygame.transform.scale(pygame.image.load("data/ghost_yellow_22.png"), pacman_width)),
+                       UP: (pygame.transform.scale(pygame.image.load("data/ghost_yellow_31.png"), pacman_width),
+                            pygame.transform.scale(pygame.image.load("data/ghost_yellow_32.png"), pacman_width))}},
     'pacman': {'ATTEMPT': pygame.transform.scale(pygame.image.load('data/pacman_attempts.png'), (20, 22)),
                'IDLE': pygame.transform.scale(pygame.image.load("data/pacman_idle.png"), pacman_width),
                'DEATH': (pygame.transform.scale(pygame.image.load("data/pacman_death1.png"), pacman_width),
@@ -426,10 +460,15 @@ sprites = {
                UP: (pygame.transform.scale(pygame.image.load("data/pacman31.png"), pacman_width),
                     pygame.transform.scale(pygame.image.load("data/pacman32.png"), pacman_width))},
     'circle_of_point': pygame.transform.scale(pygame.image.load("data/circle_of_point.png"), (8, 8)),
+    'fruit': (pygame.transform.scale(pygame.image.load("data/fruit1.png"), (30, 30)),
+              pygame.transform.scale(pygame.image.load("data/fruit2.png"), (24, 30)),
+              pygame.transform.scale(pygame.image.load("data/fruit3.png"), (24, 30)),
+              pygame.transform.scale(pygame.image.load("data/fruit4.png"), (30, 30)),),
+    100: pygame.transform.scale(pygame.image.load("data/100.png"), (26, 14)),
 }
 
 attempts = 2
-TOTAL_POINTS = 0
+TOTAL_POINTS = time_to_create_fruit = CURRENT_LEVEL = 0
 
 reset_game()
 
@@ -461,6 +500,23 @@ while running:
             elif event.key == pygame.K_DOWN:
                 last_motion = motion
                 motion = DOWN
+    if time() >= time_to_create_fruit:
+        with open(f'data/level_{CURRENT_LEVEL}_points_places.csv', 'r', newline='') as csvfile:
+            global points
+            csvfile = reader(csvfile, delimiter=';')
+            temp1 = []
+            for x, y in csvfile:
+                temp1.append((x, y))
+            temp2 = 0
+            while temp2 < len(temp1):
+                temp2 += 1
+                temp = choice(temp1)
+                temp = Circle_of_point(int(temp[0]) * 2, int(temp[1]) * 2 + 40, True)
+                if not pygame.sprite.spritecollideany(temp, points):
+                    all_sprites.add(temp)
+                    points.add(temp)
+                    break
+            time_to_create_fruit = time() + randint(35, 50)
     all_sprites.draw(screen)
     all_sprites.update()
     clock.tick(90)
