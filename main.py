@@ -67,6 +67,7 @@ sounds = {
     'eatfruit': pygame.mixer.Sound('data/pacman_eatfruit.wav')
 }
 
+
 def music_player(sound, pofig_na_busy=False):
     if not pygame.mixer.music.get_busy() or pofig_na_busy:
         pygame.mixer.music.load(f'data/{sound}')
@@ -96,7 +97,7 @@ class Circle_of_point(pygame.sprite.Sprite):
         if not is_fruit:
             self.rect.x, self.rect.y = x - 3, y - 3
         else:
-            self.rect.x, self.rect.y = x - 9, y - 15
+            self.rect.x, self.rect.y = x - 11, y - 15
         self.is_fruit = is_fruit
 
 
@@ -116,6 +117,7 @@ class Point_title(pygame.sprite.Sprite):
             self.rect.y -= 1
         if time() >= self.kill_time:
             self.kill()
+
 
 def reset_game():
     global CURRENT_LEVEL, attempts, points, TOTAL_POINTS
@@ -415,13 +417,13 @@ sprites = {
                       UP: (pygame.transform.scale(pygame.image.load("data/ghost_red_31.png"), pacman_width),
                            pygame.transform.scale(pygame.image.load("data/ghost_red_32.png"), pacman_width))},
               'pink': {LEFT: (pygame.transform.scale(pygame.image.load("data/ghost_pink_01.png"), pacman_width),
-                             pygame.transform.scale(pygame.image.load("data/ghost_pink_02.png"), pacman_width)),
-                      RIGHT: (pygame.transform.scale(pygame.image.load("data/ghost_pink_11.png"), pacman_width),
-                              pygame.transform.scale(pygame.image.load("data/ghost_pink_12.png"), pacman_width)),
-                      DOWN: (pygame.transform.scale(pygame.image.load("data/ghost_pink_21.png"), pacman_width),
-                             pygame.transform.scale(pygame.image.load("data/ghost_pink_22.png"), pacman_width)),
-                      UP: (pygame.transform.scale(pygame.image.load("data/ghost_pink_31.png"), pacman_width),
-                           pygame.transform.scale(pygame.image.load("data/ghost_pink_32.png"), pacman_width))},
+                              pygame.transform.scale(pygame.image.load("data/ghost_pink_02.png"), pacman_width)),
+                       RIGHT: (pygame.transform.scale(pygame.image.load("data/ghost_pink_11.png"), pacman_width),
+                               pygame.transform.scale(pygame.image.load("data/ghost_pink_12.png"), pacman_width)),
+                       DOWN: (pygame.transform.scale(pygame.image.load("data/ghost_pink_21.png"), pacman_width),
+                              pygame.transform.scale(pygame.image.load("data/ghost_pink_22.png"), pacman_width)),
+                       UP: (pygame.transform.scale(pygame.image.load("data/ghost_pink_31.png"), pacman_width),
+                            pygame.transform.scale(pygame.image.load("data/ghost_pink_32.png"), pacman_width))},
               'blue': {LEFT: (pygame.transform.scale(pygame.image.load("data/ghost_blue_01.png"), pacman_width),
                               pygame.transform.scale(pygame.image.load("data/ghost_blue_02.png"), pacman_width)),
                        RIGHT: (pygame.transform.scale(pygame.image.load("data/ghost_blue_11.png"), pacman_width),
@@ -431,13 +433,13 @@ sprites = {
                        UP: (pygame.transform.scale(pygame.image.load("data/ghost_blue_31.png"), pacman_width),
                             pygame.transform.scale(pygame.image.load("data/ghost_blue_32.png"), pacman_width))},
               'yellow': {LEFT: (pygame.transform.scale(pygame.image.load("data/ghost_yellow_01.png"), pacman_width),
-                              pygame.transform.scale(pygame.image.load("data/ghost_yellow_02.png"), pacman_width)),
-                       RIGHT: (pygame.transform.scale(pygame.image.load("data/ghost_yellow_11.png"), pacman_width),
-                               pygame.transform.scale(pygame.image.load("data/ghost_yellow_12.png"), pacman_width)),
-                       DOWN: (pygame.transform.scale(pygame.image.load("data/ghost_yellow_21.png"), pacman_width),
-                              pygame.transform.scale(pygame.image.load("data/ghost_yellow_22.png"), pacman_width)),
-                       UP: (pygame.transform.scale(pygame.image.load("data/ghost_yellow_31.png"), pacman_width),
-                            pygame.transform.scale(pygame.image.load("data/ghost_yellow_32.png"), pacman_width))}},
+                                pygame.transform.scale(pygame.image.load("data/ghost_yellow_02.png"), pacman_width)),
+                         RIGHT: (pygame.transform.scale(pygame.image.load("data/ghost_yellow_11.png"), pacman_width),
+                                 pygame.transform.scale(pygame.image.load("data/ghost_yellow_12.png"), pacman_width)),
+                         DOWN: (pygame.transform.scale(pygame.image.load("data/ghost_yellow_21.png"), pacman_width),
+                                pygame.transform.scale(pygame.image.load("data/ghost_yellow_22.png"), pacman_width)),
+                         UP: (pygame.transform.scale(pygame.image.load("data/ghost_yellow_31.png"), pacman_width),
+                              pygame.transform.scale(pygame.image.load("data/ghost_yellow_32.png"), pacman_width))}},
     'pacman': {'ATTEMPT': pygame.transform.scale(pygame.image.load('data/pacman_attempts.png'), (20, 22)),
                'IDLE': pygame.transform.scale(pygame.image.load("data/pacman_idle.png"), pacman_width),
                'DEATH': (pygame.transform.scale(pygame.image.load("data/pacman_death1.png"), pacman_width),
@@ -511,11 +513,15 @@ while running:
             while temp2 < len(temp1):
                 temp2 += 1
                 temp = choice(temp1)
-                temp = Circle_of_point(int(temp[0]) * 2, int(temp[1]) * 2 + 40, True)
-                if not pygame.sprite.spritecollideany(temp, points):
+                x, y = int(temp[0]) * 2, int(temp[1]) * 2 + 40
+                temp = Circle_of_point(x, y, True)
+                if not pygame.sprite.spritecollideany(temp, points) and not (x - 40 < Pacman_obj.rect.x < x + 72 and
+                                                                             y - 40 < Pacman_obj.rect.y < y + 68):
                     all_sprites.add(temp)
                     points.add(temp)
                     break
+                else:
+                    temp.kill()
             time_to_create_fruit = time() + randint(35, 50)
     all_sprites.draw(screen)
     all_sprites.update()
