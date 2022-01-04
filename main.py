@@ -246,8 +246,6 @@ class Ghost(pygame.sprite.Sprite):
                         break
                     elif self.possible_move_to_sides(new_sides[i], False):
                         self.do_a_move(new_sides[i], False)
-                        if not (x1 < self.rect.x < x2 and y1 < self.rect.y < y2):
-                            break
                 self.rect = start_pos
             return new_sides[moves_count.index(min(moves_count))]
         else:
@@ -354,9 +352,8 @@ class Pacman(pygame.sprite.Sprite):
                 WIN()
         if self.must_play_eat_sound and time() >= self.time_to_play_sound:
             self.must_play_eat_sound = False
-            self.time_to_play_sound = time() + sounds['chomp'].get_length() - 0.1
+            self.time_to_play_sound = time() + sounds['chomp'].get_length()
             sounds['chomp'].play()
-            #music_player('pacman_chomp.wav', True)
         if pygame.sprite.spritecollideany(self, ghosts):
             self.death()
         elif not pygame.sprite.collide_mask(self, Location_obj):
