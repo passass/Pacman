@@ -27,6 +27,8 @@ def start_screen(text):
 
     # fon = pygame.transform.scale(pygame.image.load('data/fon.jpg'), (width, height))`
     # screen.blit(fon, (0, 0))
+    screen.fill((0, 0, 0))
+    pygame.display.flip()
     text_coord = 150
     for line in intro_text:
         string_rendered = font.render(line, True, pygame.Color('white'))
@@ -52,12 +54,16 @@ start_screen('Нажмите любую кнопку чтобы продолжи
 
 levels_settings = {
     # картинка карты, картинка хитбоксов карты, координаты спавна пакмана,
-    # координаты спавна призраков, координаты кнопки старт, менять ли размер окна (пустой если не надо),
+    # параметры призраков, координаты кнопки старт, менять ли размер окна (пустой если не надо),
     # координаты зоны из которой выходят призраки
     1: (pygame.transform.scale(pygame.image.load("data/level_1_background.png"), (width, height - 100)),
         pygame.transform.scale(pygame.image.load("data/level_1_walls_hitbox.png"), (width, height - 100)),
         (570, 272), ((528, 147, 'red', 0), (595, 147, 'pink', 0), (565, 147, 'yellow', 10), (560, 147, 'blue', 20)),
         (525, 200), (), (520, 130, 623, 192)),
+    2: (pygame.transform.scale(pygame.image.load("data/level_2_background.png"), (448, 496)),
+        pygame.transform.scale(pygame.image.load("data/level_2_walls_hitbox.png"), (448, 496)),
+        (212, 400), ((178, 260, 'red', 0), (240, 260, 'pink', 0), (206, 260, 'yellow', 10), (230, 260, 'blue', 20)),
+        (178, 312), (448, 596), (168, 240, 280, 304)),
 }
 
 pygame.mixer.init()
@@ -68,8 +74,8 @@ sounds = {
 }
 
 
-def music_player(sound, pofig_na_busy=False):
-    if not pygame.mixer.music.get_busy() or pofig_na_busy:
+def music_player(sound):
+    if not pygame.mixer.music.get_busy():
         pygame.mixer.music.load(f'data/{sound}')
         pygame.mixer.music.play()
         pygame.mixer.music.set_volume(0.1)
@@ -188,8 +194,6 @@ def WIN():
         time_to_win = time() + 0.75
         while time() < time_to_win:
             pass
-        screen.fill((0, 0, 0))
-        pygame.display.flip()
         start_screen('Вы выиграли, но вы можете продолжить играть. Нажмите любую кнопку чтобы продолжить')
         reset_game()
     else:
@@ -213,6 +217,7 @@ class Ghost(pygame.sprite.Sprite):
         self.motion_dont_move_to = []
         self.release_time = time() + release_time
         self.last = []
+        self.stucked = None
 
     def sees_pacman(self, sides):
         last_rect = self.rect
@@ -233,6 +238,7 @@ class Ghost(pygame.sprite.Sprite):
             sides = [LEFT, RIGHT, DOWN, UP]
         for x in sides:
             self.rect = self.rect.move(x[0] * 16, x[1] * 16)
+            #if self.color == 'red':
             if not pygame.sprite.collide_mask(self, Location_obj):
                 if x not in self.motion_dont_move_to:
                     if block_motion:
@@ -254,11 +260,10 @@ class Ghost(pygame.sprite.Sprite):
             new_sides = sides
         if not new_sides:
             return self.motion
-        else:
-            new_sides.append(self.motion)
+        new_sides.append(self.motion)
         x1, y1, x2, y2 = levels_settings[CURRENT_LEVEL][6]
         if x1 < self.rect.x < x2 and y1 < self.rect.y < y2:
-            if UP in new_sides:
+            if UP in new_sides and (not self.stucked or self.motion != UP):
                 return UP
             start_pos = self.rect
             moves_count = [0] * len(new_sides)
@@ -278,6 +283,7 @@ class Ghost(pygame.sprite.Sprite):
             return self.sees_pacman(new_sides) or choice(new_sides)
 
     def do_a_move(self, side_to_move=None, take_into_collision=True):
+        self.stucked = False
         if self.rect.x < -25:
             self.rect.x = width - pacman_width[0]
         elif self.rect.x > width - 3:
@@ -288,7 +294,8 @@ class Ghost(pygame.sprite.Sprite):
         self.rect = self.rect.move(*side_to_move)
         self.motion = side_to_move
         if pygame.sprite.collide_mask(self, Location_obj) and take_into_collision:
-            self.motion_dont_move_to = []
+            self.stucked = True
+            self.motion_dont_move_to = [self.motion]
             self.motion = self.choose_side_to_move()
             self.rect.x, self.rect.y = last
 
@@ -478,11 +485,12 @@ points_tab = font.render(str(TOTAL_POINTS), True, pygame.Color('white'))
 intro_rect = points_tab.get_rect()
 intro_rect.x = 10
 intro_rect.top = 10
+
 # Процесс игры
 while running:
     screen.fill((0, 0, 0))
     for i in range(attempts):
-        screen.blit(sprites['pacman']['ATTEMPT'], (30 + 30 * i, 330))
+        screen.blit(sprites['pacman']['ATTEMPT'], (30 + 30 * i, height - 42))
     screen.blit(points_tab, intro_rect)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -520,12 +528,10 @@ while running:
                     all_sprites.add(temp)
                     points.add(temp)
                     break
-                else:
-                    temp.kill()
             time_to_create_fruit = time() + randint(35, 50)
     all_sprites.draw(screen)
     all_sprites.update()
-    clock.tick(90)
     pygame.display.flip()
+    clock.tick(90)
     music_player('pacman_ghosts_sounds.wav')
 pygame.quit()
