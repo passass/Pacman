@@ -100,6 +100,9 @@ class Circle_of_point(pygame.sprite.Sprite):
             self.image = choice(sprites['circle_of_point'][point_type])
             self.rect = self.image.get_rect()
             self.rect.x, self.rect.y = x - 3, y - 3
+            while pygame.sprite.collide_mask(self, Location_obj):
+                self.rect.y += 1
+            self.rect.y += 1
         else:
             self.image = sprites['circle_of_point'][point_type]
             self.rect = self.image.get_rect()
@@ -328,8 +331,6 @@ class Ghost(pygame.sprite.Sprite):
             if now > self.back_to_start_pos_at:
                 self.is_death = False
                 self.rect.x, self.rect.y = self.start_pos
-                self.is_scary = False
-                self.fright_time = 0
                 return self.choose_side_to_move()
             if x1 < self.rect.x < x2 and y1 + 6 < self.rect.y < y2:
                 self.is_death = False
@@ -381,9 +382,9 @@ class Ghost(pygame.sprite.Sprite):
             self.do_a_move()
             if self.is_death:
                 self.do_a_move()
-            if now > self.fright_time:
+            if now > self.fright_time or self.is_death:
                 self.do_a_move()
-                if self.fright_time:
+                if self.fright_time and not self.is_death:
                     self.fright_time = 0
                     self.is_scary = False
         if now >= self.animation_change_delay:
@@ -587,10 +588,10 @@ sprites = {
                                   pygame.transform.scale(pygame.image.load("data/fruit4.png"), (30, 30)),),
                         },
     100: pygame.transform.scale(pygame.image.load("data/100.png"), (26, 14)),
-    200: pygame.transform.scale(pygame.image.load("data/200.png"), (26, 14)),
-    400: pygame.transform.scale(pygame.image.load("data/400.png"), (26, 14)),
-    800: pygame.transform.scale(pygame.image.load("data/800.png"), (26, 14)),
-    1600: pygame.transform.scale(pygame.image.load("data/1600.png"), (26, 14)),
+    200: pygame.transform.scale(pygame.image.load("data/200.png"), (30, 14)),
+    400: pygame.transform.scale(pygame.image.load("data/400.png"), (30, 14)),
+    800: pygame.transform.scale(pygame.image.load("data/800.png"), (30, 14)),
+    1600: pygame.transform.scale(pygame.image.load("data/1600.png"), (32, 14)),
 }
 
 attempts = 2
