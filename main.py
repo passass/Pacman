@@ -235,7 +235,7 @@ class Ghost(pygame.sprite.Sprite):
         super().__init__(*group)
         self.color = color
         self.image = sprites['ghost'][color][LEFT][0]
-        self.animation_stage = 0
+        self.animation_stage = False
         self.animation_change_delay = 0
         self.rect = self.image.get_rect()
         self.mask = pygame.mask.from_surface(self.image)
@@ -245,20 +245,25 @@ class Ghost(pygame.sprite.Sprite):
         self.motion = choice([LEFT, RIGHT])
         self.motion_dont_move_to = []
         self.release_time = time() + release_time
+        self.released = time() >= self.release_time
         self.stucked = None
         self.fright_time = 0
         self.is_scary = False
         self.is_death = False
+        self.glowing = False
+        self.glowing_time = 0
+        self.back_to_start_pos_at = 0
 
     def killed(self):
+        time_ = time() + .5
+        while time() < time_:
+            clock.tick(30)
         self.is_death = True
         self.is_scary = False
         self.fright_time = 0
-        self.back_to_start_pos_at = time() + 15
-        time_ = time() + 0.5
+        self.back_to_start_pos_at = time() + 10
         self.motion_dont_move_to = []
-        while time() < time_:
-            clock.tick(30)
+
 
     def sees_pacman(self, sides):
         last_rect = self.rect
@@ -377,8 +382,12 @@ class Ghost(pygame.sprite.Sprite):
     def update(self):
         self.image = self.is_death and sprites['ghost']['death'][self.motion] or \
             not self.is_scary and sprites['ghost'][self.color][self.motion][self.animation_stage] or \
-            sprites['ghost']['scary'][self.animation_stage]
-        if now >= self.release_time:
+            sprites['ghost']['scary'][self.glowing][self.animation_stage]
+        if self.is_scary:
+            if now > self.glowing_time:
+                self.glowing = not self.glowing
+                self.glowing_time = now + .5
+        if self.released:
             self.do_a_move()
             if self.is_death:
                 self.do_a_move()
@@ -387,16 +396,21 @@ class Ghost(pygame.sprite.Sprite):
                 if self.fright_time and not self.is_death:
                     self.fright_time = 0
                     self.is_scary = False
+        else:
+            self.released = now >= self.release_time
+            if now > self.fright_time and self.fright_time:
+                self.fright_time = 0
+                self.is_scary = False
         if now >= self.animation_change_delay:
             self.animation_change_delay = now + 0.2
-            self.animation_stage = abs(self.animation_stage - 1)
+            self.animation_stage = not self.animation_stage
 
 
 class Pacman(pygame.sprite.Sprite):
     def __init__(self, x, y, *group):
         super().__init__(*group)
         self.image = sprites['pacman']['IDLE']
-        self.animation_stage = 0
+        self.animation_stage = False
         self.animation_change_delay = 0
         self.rect = self.image.get_rect()
         self.mask = pygame.mask.from_surface(self.image)
@@ -469,7 +483,9 @@ class Pacman(pygame.sprite.Sprite):
                     EATED_GHOSTS_COUNT = 1
                     for x1 in ghosts:
                         x1.is_scary = True
-                        x1.fright_time = now + 15
+                        x1.fright_time = now + 10
+                        x1.glowing_time = now + 7
+                        x1.glowing = False
                 else:
                     add_points(10)
                 x.kill()
@@ -486,12 +502,15 @@ class Pacman(pygame.sprite.Sprite):
                 if now > x.fright_time:
                     self.death()
                     return
-                elif not x.is_death:
+                else:
+                    sounds['eatghost'].play()
+                    for x1 in ghosts:
+                        x1.fright_time += .5
+                        x1.back_to_start_pos_at += .5
                     x.killed()
                     add_points(200 * EATED_GHOSTS_COUNT)
                     all_sprites.add(Point_title(x.rect.x, x.rect.y, 200 * EATED_GHOSTS_COUNT))
                     EATED_GHOSTS_COUNT *= 2
-                    sounds['eatghost'].play()
         if not pygame.sprite.collide_mask(self, Location_obj):
             if self.rect.x < -25:
                 self.rect.x = width - pacman_width[0]
@@ -501,10 +520,10 @@ class Pacman(pygame.sprite.Sprite):
             self.rect = self.rect.move(*self.last_motion)
             if pygame.sprite.collide_mask(self, Location_obj):
                 self.rect = self.rect.move(self.last[0] - self.rect.x, self.last[1] - self.rect.y)
-                self.animation_stage = 0
+                self.animation_stage = False
             elif now >= self.animation_change_delay:
                 self.animation_change_delay = now + 0.1
-                self.animation_stage = abs(self.animation_stage - 1)
+                self.animation_stage = not self.animation_stage
         if self.can_move_to(motion):
             self.last_motion = motion
 
@@ -553,8 +572,10 @@ sprites = {
                                 pygame.transform.scale(pygame.image.load("data/ghost_yellow_22.png"), pacman_width)),
                          UP: (pygame.transform.scale(pygame.image.load("data/ghost_yellow_31.png"), pacman_width),
                               pygame.transform.scale(pygame.image.load("data/ghost_yellow_32.png"), pacman_width))},
-              'scary': (pygame.transform.scale(pygame.image.load("data/ghost_scary1.png"), pacman_width),
+              'scary': ((pygame.transform.scale(pygame.image.load("data/ghost_scary1.png"), pacman_width),
                         pygame.transform.scale(pygame.image.load("data/ghost_scary2.png"), pacman_width)),
+                        (pygame.transform.scale(pygame.image.load("data/ghost_white_scary1.png"), pacman_width),
+                                pygame.transform.scale(pygame.image.load("data/ghost_white_scary2.png"), pacman_width))),
               'death': {LEFT: pygame.transform.scale(pygame.image.load("data/ghost_eye_0.png"), pacman_width),
                      RIGHT: pygame.transform.scale(pygame.image.load("data/ghost_eye_1.png"), pacman_width),
                      DOWN: pygame.transform.scale(pygame.image.load("data/ghost_eye_2.png"), pacman_width),
