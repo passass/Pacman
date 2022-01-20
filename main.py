@@ -46,6 +46,7 @@ def start_screen(*text, indent=240):
         pygame.display.flip()
         clock.tick(50)
 
+now = 0
 
 start_screen('Нажмите любую кнопку чтобы продолжить')
 
@@ -55,11 +56,11 @@ levels_settings = {
     # координаты зоны из которой выходят призраки
     1: (pygame.transform.scale(pygame.image.load("data/level_1_background.png"), (width, height - 120)),
         pygame.transform.scale(pygame.image.load("data/level_1_walls_hitbox.png"), (width, height - 120)),
-        (570, 292), ((528, 167, 'red', 0), (595, 167, 'pink', 0), (565, 167, 'yellow', 10), (560, 167, 'blue', 20)),
+        (570, 292), ((528, 167, 'red', 0), (595, 167, 'pink', 0), (565, 167, 'yellow', 450), (560, 167, 'blue', 900)),
         (525, 220), (928, 392), (520, 150, 623, 212)),
     2: (pygame.transform.scale(pygame.image.load("data/level_2_background.png"), (448, 496)),
         pygame.transform.scale(pygame.image.load("data/level_2_walls_hitbox.png"), (448, 496)),
-        (212, 420), ((178, 280, 'red', 0), (240, 280, 'pink', 0), (206, 280, 'yellow', 10), (230, 280, 'blue', 20)),
+        (212, 420), ((178, 280, 'red', 0), (240, 280, 'pink', 0), (206, 280, 'yellow', 450), (230, 280, 'blue', 900)),
         (178, 332), (448, 616), (168, 260, 280, 324)),
 }
 
@@ -120,14 +121,13 @@ class Point_title(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.mask = pygame.mask.from_surface(self.image)
         self.rect.x, self.rect.y = x + 3, y
-        self.kill_time = time() + 1.5
         self.tick_count = 0
 
     def update(self):
         self.tick_count += 1
         if self.tick_count % 3 == 0:
             self.rect.y -= 1
-        if now >= self.kill_time:
+        if self.tick_count >= 60:
             self.kill()
 
 
@@ -142,7 +142,6 @@ def reset_game():
     all_fruits = 0
     attempts = 2
     CURRENT_LEVEL = 1
-    points = pygame.sprite.Group()
     load_points_locations()
     load_level()
 
@@ -150,6 +149,7 @@ def reset_game():
 def load_points_locations():
     with open(f'data/level_{CURRENT_LEVEL}_points_places.csv', 'r', newline='') as csvfile:
         global points
+        points = pygame.sprite.Group()
         list_of_points = list(reader(csvfile, delimiter=';'))
         for x, y in list_of_points[:-4]:
             points.add(Circle_of_point(int(x) * 2, int(y) * 2 + 60, 'normal'))
@@ -178,12 +178,12 @@ def load_level():
         all_sprites.add(Ghost(*stats))
         ghosts.add(all_sprites.sprites()[-1])
     music_player('pacman_beginning.wav')
-    time_to_hide_text = time() + 4
     string_rendered = font.render('START!', True, pygame.Color('yellow'))
     intro_rect = string_rendered.get_rect()
     intro_rect.x = levels_settings[CURRENT_LEVEL][4][0]
     intro_rect.top = levels_settings[CURRENT_LEVEL][4][1]
-    while time() < time_to_hide_text:
+    a = time() + 4
+    while time() < a:
         screen.fill((0, 0, 0))
         all_sprites.draw(screen)
         screen.blit(string_rendered, intro_rect)
@@ -192,7 +192,7 @@ def load_level():
                 terminate()
         pygame.display.flip()
         clock.tick(50)
-    time_to_create_fruit = time() + randint(30, 50)
+    time_to_create_fruit = now + randint(1350, 2250)
 
 
 def add_points(count):
@@ -205,11 +205,12 @@ def WIN():
     global CURRENT_LEVEL, all_fruits
     CURRENT_LEVEL += 1
     all_fruits = 0
-    time_to_win = time() + 0.75
+    time_to_win = 0
     pygame.display.flip()
     if CURRENT_LEVEL not in levels_settings:
-        while time() < time_to_win:
-            pass
+        while time_to_win < 34:
+            time_to_win += 1
+            clock.tick(34)
         try:
             with open('best_score.txt', 'r') as file1:
                 global TOTAL_POINTS
@@ -223,9 +224,12 @@ def WIN():
                      f'                 Ваш итоговый счёт {TOTAL_POINTS}', indent=10)
         reset_game()
     else:
-        while time() < time_to_win:
-            pass
+        while time_to_win < 34:
+            time_to_win += 1
+            clock.tick(34)
         start_screen('Нажмите любую кнопку чтобы продолжить')
+        global points
+        points = pygame.sprite.Group()
         load_points_locations()
         load_level()
 
@@ -244,8 +248,8 @@ class Ghost(pygame.sprite.Sprite):
         self.rect.y = y
         self.motion = choice([LEFT, RIGHT])
         self.motion_dont_move_to = []
-        self.release_time = time() + release_time
-        self.released = time() >= self.release_time
+        self.release_time = now + release_time
+        self.released = now >= self.release_time
         self.stucked = None
         self.fright_time = 0
         self.is_scary = False
@@ -255,13 +259,14 @@ class Ghost(pygame.sprite.Sprite):
         self.back_to_start_pos_at = 0
 
     def killed(self):
-        time_ = time() + .5
-        while time() < time_:
+        ticks = 0
+        while ticks < 15:
+            ticks += 1
             clock.tick(30)
         self.is_death = True
         self.is_scary = False
         self.fright_time = 0
-        self.back_to_start_pos_at = time() + 10
+        self.back_to_start_pos_at = now + 450
         self.motion_dont_move_to = []
 
 
@@ -386,7 +391,7 @@ class Ghost(pygame.sprite.Sprite):
         if self.is_scary:
             if now > self.glowing_time:
                 self.glowing = not self.glowing
-                self.glowing_time = now + .5
+                self.glowing_time = now + 23
         if self.released:
             self.do_a_move()
             if self.is_death:
@@ -402,7 +407,7 @@ class Ghost(pygame.sprite.Sprite):
                 self.fright_time = 0
                 self.is_scary = False
         if now >= self.animation_change_delay:
-            self.animation_change_delay = now + 0.2
+            self.animation_change_delay = now + 9
             self.animation_stage = not self.animation_stage
 
 
@@ -434,34 +439,37 @@ class Pacman(pygame.sprite.Sprite):
 
     def death(self):
         global attempts, ghosts
-        time_to_load_new_level = now + 1
-        while time() < time_to_load_new_level:
+        ticks = 0
+        while ticks < 30:
+            ticks += 1
             clock.tick(30)
-        time_to_load_new_level = time() + 2.5
-        time_to_next_animation = time()
+        time_to_load_new_level = ticks + 150
+        time_to_next_animation = ticks
         by_account = -1
         ghosts = pygame.sprite.Group()
         music_player('pacman_death.wav')
-        while time() < time_to_load_new_level:
+        while ticks < time_to_load_new_level:
+            ticks += 1
             screen.fill((0, 0, 0))
-            if time() >= time_to_next_animation:
+            if ticks >= time_to_next_animation:
                 if by_account < 10:
                     by_account += 1
                     self.image = sprites['pacman']["DEATH"][by_account]
                     if by_account == 10:
-                        time_to_next_animation = time() + 0.3
+                        time_to_next_animation = ticks + 18
                     else:
-                        time_to_next_animation = time() + 0.1
+                        time_to_next_animation = ticks + 6
                 else:
                     self.kill()
-                    time_to_next_animation = time() + 2
+                    time_to_next_animation = ticks + 120
             all_sprites.draw(screen)
             pygame.display.flip()
-            clock.tick(120)
-        time_to_load_new_level = time() + .2
+            clock.tick(60)
+        time_to_load_new_level = ticks + 6
         screen.fill((0, 0, 0))
         pygame.display.flip()
-        while time() < time_to_load_new_level:
+        while ticks < time_to_load_new_level:
+            ticks += 1
             clock.tick(30)
         attempts -= 1
         if attempts < 0:
@@ -483,8 +491,8 @@ class Pacman(pygame.sprite.Sprite):
                     EATED_GHOSTS_COUNT = 1
                     for x1 in ghosts:
                         x1.is_scary = True
-                        x1.fright_time = now + 10
-                        x1.glowing_time = now + 7
+                        x1.fright_time = now + 450
+                        x1.glowing_time = now + 315
                         x1.glowing = False
                 else:
                     add_points(10)
@@ -495,7 +503,7 @@ class Pacman(pygame.sprite.Sprite):
                 self.must_play_eat_sound = True
         if self.must_play_eat_sound and now >= self.time_to_play_sound:
             self.must_play_eat_sound = False
-            self.time_to_play_sound = now + sounds['chomp'].get_length()
+            self.time_to_play_sound = now + sounds['chomp'].get_length() * 45
             sounds['chomp'].play()
         for x in pygame.sprite.spritecollide(self, ghosts, False):
             if not x.is_death:
@@ -504,9 +512,6 @@ class Pacman(pygame.sprite.Sprite):
                     return
                 else:
                     sounds['eatghost'].play()
-                    for x1 in ghosts:
-                        x1.fright_time += .5
-                        x1.back_to_start_pos_at += .5
                     x.killed()
                     add_points(200 * EATED_GHOSTS_COUNT)
                     all_sprites.add(Point_title(x.rect.x, x.rect.y, 200 * EATED_GHOSTS_COUNT))
@@ -522,7 +527,7 @@ class Pacman(pygame.sprite.Sprite):
                 self.rect = self.rect.move(self.last[0] - self.rect.x, self.last[1] - self.rect.y)
                 self.animation_stage = False
             elif now >= self.animation_change_delay:
-                self.animation_change_delay = now + 0.1
+                self.animation_change_delay = now + 5
                 self.animation_stage = not self.animation_stage
         if self.can_move_to(motion):
             self.last_motion = motion
@@ -646,7 +651,7 @@ while running:
     screen.blit(points_tab, points_tab_intro_rect)
     screen.blit(points_tab_text, points_tab_text_intro_rect)
     screen.blit(BEST_SCORE_TAB, BEST_SCORE_TAB_intro_rect)
-    now = time()
+    now += 1
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -683,14 +688,14 @@ while running:
                     all_sprites.add(temp)
                     points.add(temp)
                     break
-            time_to_create_fruit = now + randint(35, 50)
+            time_to_create_fruit = now + randint(1575, 2250)
     all_sprites.draw(screen)
     all_sprites.update()
     pygame.display.flip()
     clock.tick(45)
     if now > sounds_delay['backtobase'] and list(filter(lambda x: x.is_death, ghosts)):
         sounds['backtobase'].play()
-        sounds_delay['backtobase'] = now + sounds['backtobase'].get_length()
+        sounds_delay['backtobase'] = now + sounds['backtobase'].get_length() * 45
     if list(filter(lambda x: x.is_scary, ghosts)):
         music_player('pacman_ghostscary.wav')
     else:
