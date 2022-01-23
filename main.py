@@ -24,6 +24,9 @@ def terminate():
 
 
 def start_screen(*text, indent=240):
+    global screen
+    old_screen = screen
+    screen = pygame.display.set_mode((max(round(max((len(x) for x in text)) * 13.08 + indent), 928), 392))
     screen.fill((0, 0, 0))
     pygame.display.flip()
     text_coord = 180
@@ -42,9 +45,11 @@ def start_screen(*text, indent=240):
                 terminate()
             elif event.type == pygame.KEYDOWN or \
                     event.type == pygame.MOUSEBUTTONDOWN:
+                screen = old_screen
                 return  # начинаем игру
         pygame.display.flip()
         clock.tick(50)
+
 
 now = 0
 
@@ -132,12 +137,13 @@ class Point_title(pygame.sprite.Sprite):
 
 
 def reset_game():
-    global CURRENT_LEVEL, attempts, points, TOTAL_POINTS, all_fruits, BEST_SCORE_TAB
+    global CURRENT_LEVEL, attempts, points, TOTAL_POINTS, all_fruits, BEST_SCORE_TAB, points_tab
     try:
         with open('best_score.txt', 'r') as file:
             BEST_SCORE_TAB = font.render(str(file.readlines()[0]), True, pygame.Color('white'))
     except Exception:
         BEST_SCORE_TAB = font.render('0', True, pygame.Color('white'))
+    points_tab = font.render('0', True, pygame.Color('white'))
     TOTAL_POINTS = 0
     all_fruits = 0
     attempts = 2
@@ -228,7 +234,8 @@ def WIN():
             time_to_win += 1
             clock.tick(34)
         start_screen('Нажмите любую кнопку чтобы продолжить')
-        global points
+        global points, attempts
+        attempts = 2
         points = pygame.sprite.Group()
         load_points_locations()
         load_level()
@@ -274,12 +281,12 @@ class Ghost(pygame.sprite.Sprite):
         last_rect = self.rect
         for x in sides:
             while True:
-                self.do_a_move(x, False)
-                if pygame.sprite.collide_mask(self, Location_obj):
-                    break
-                elif pygame.sprite.collide_mask(self, Pacman_obj):
+                self.rect = self.rect.move(x[0] * 4, x[1] * 4)
+                if pygame.sprite.collide_mask(self, Pacman_obj):
                     self.rect = last_rect
                     return x
+                elif pygame.sprite.collide_mask(self, Location_obj):
+                    break
             self.rect = last_rect
         return False
 
@@ -342,11 +349,11 @@ class Ghost(pygame.sprite.Sprite):
                 self.is_death = False
                 self.rect.x, self.rect.y = self.start_pos
                 return self.choose_side_to_move()
-            if x1 < self.rect.x < x2 and y1 + 6 < self.rect.y < y2:
+            if x1 + 3 < self.rect.x < x2 - 3 and y1 + 6 < self.rect.y < y2 - 1:
                 self.is_death = False
             return self.choice_move_to_base(new_sides, (x1, y1, x2, y2)) or choice(new_sides)
         elif x1 < self.rect.x < x2 and y1 < self.rect.y < y2:
-            if x1 < self.rect.x < x2 and y1 < self.rect.y < y2:
+            if self.is_death:
                 self.is_death = False
             if UP in new_sides and (not self.stucked or self.motion != UP):
                 return UP
@@ -368,7 +375,6 @@ class Ghost(pygame.sprite.Sprite):
             return not self.is_scary and self.sees_pacman(new_sides) or choice(new_sides)
 
     def do_a_move(self, side_to_move=None, take_into_collision=True):
-        self.stucked = False
         if self.rect.x < -25:
             self.rect.x = width - pacman_width[0]
         elif self.rect.x > width - 3:
@@ -383,6 +389,8 @@ class Ghost(pygame.sprite.Sprite):
             self.motion_dont_move_to = [self.motion]
             self.motion = self.choose_side_to_move()
             self.rect.x, self.rect.y = last_x, last_y
+        elif self.stucked:
+            self.stucked = False
 
     def update(self):
         self.image = self.is_death and sprites['ghost']['death'][self.motion] or \
@@ -655,8 +663,6 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            print(event.pos)
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_LEFT:
                 last_motion = motion
